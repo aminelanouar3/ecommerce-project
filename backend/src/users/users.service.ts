@@ -14,9 +14,6 @@ export class UsersService {
   ) {}
 
   // 🔹 Find user by email
-  async findByEmail(email: string): Promise<User | null> {
-    return this.repo.findOne({ where: { email } });
-  }
 
   // 🔹 Create new user
   async create(email: string, password: string): Promise<User> {
@@ -49,5 +46,17 @@ export class UsersService {
   await this.repo.save(user);
 
   return { message: 'Password updated successfully' };
+}
+
+async findByEmail(email: string) {
+  return this.repo.findOne({ where: { email } });
+}
+
+async findByResetToken(token: string) {
+  return this.repo.findOne({ where: { resetToken: token } });
+}
+
+async save(user: User) {
+  return this.repo.save(user);
 }
 }
