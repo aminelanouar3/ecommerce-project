@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -32,43 +36,43 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-  const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmail(email);
 
-  if (!user) {
-    return { message: 'If email exists, code sent' };
+    if (!user) {
+      return { message: 'If email exists, code sent' };
+    }
+
+    // 🔑 Generate 6-digit code
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    user.resetToken = code;
+    user.resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 5); // 5 min
+
+    await this.usersService.save(user);
+
+    // 📧 Send email
+    await sendResetCode(user.email, code);
+
+    return { message: 'Reset code sent to email' };
   }
 
-  // 🔑 Generate 6-digit code
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  async resetPassword(token: string, newPassword: string) {
+    const user = await this.usersService.findByResetToken(token);
 
-  user.resetToken = code;
-  user.resetTokenExpiry = new Date(Date.now() + 1000 * 60 * 5); // 5 min
+    if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
+      throw new Error('Invalid or expired code');
+    }
 
-  await this.usersService.save(user);
+    user.password = await bcrypt.hash(newPassword, 10);
 
-  // 📧 Send email
-  await sendResetCode(user.email, code);
+    // cleanup
+    user.resetToken = null;
+    user.resetTokenExpiry = null;
 
-  return { message: 'Reset code sent to email' };
-}
+    await this.usersService.save(user);
 
-async resetPassword(token: string, newPassword: string) {
-  const user = await this.usersService.findByResetToken(token);
-
-  if (!user || !user.resetTokenExpiry || user.resetTokenExpiry < new Date()) {
-    throw new Error('Invalid or expired code');
+    return { message: 'Password reset successful' };
   }
-
-  user.password = await bcrypt.hash(newPassword, 10);
-
-  // cleanup
-  user.resetToken = null;
-  user.resetTokenExpiry = null;
-
-  await this.usersService.save(user);
-
-  return { message: 'Password reset successful' };
-}
 
   generateToken(user: any) {
     return {
