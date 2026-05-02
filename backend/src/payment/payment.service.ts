@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, PaymentStatus, OrderStatus } from '../orders/order.entity';
+import { Product } from 'src/products/product.entity';
 
 @Injectable()
 export class PaymentService {
@@ -12,6 +13,8 @@ export class PaymentService {
   constructor(
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
   ) {}
 
   // CREATE CHECKOUT
@@ -34,6 +37,14 @@ export class PaymentService {
         success: false,
         message: 'Order already paid',
       };
+    }
+    for (const item of order.items) {
+      if (item.product.stock < item.quantity) {
+        return {
+          success: false,
+          message: `Not enough stock for ${item.product.name}`,
+        };
+      }
     }
     const session = await this.stripe.checkout.sessions.create({
       mode: 'payment',
@@ -72,26 +83,63 @@ export class PaymentService {
   // SUCCESS PAYMENT
   async handleSuccess(data: any) {
     const orderId = data.metadata?.orderId;
-    if (!orderId) return;
+    if (!orderId) {
+      return {
+        success: false,
+        message: 'Order ID not found in payment metadata',
+      };
+    }
     const order = await this.orderRepo.findOne({
       where: { id: orderId },
     });
-    if (!order) return;
-    if (order.paymentStatus === PaymentStatus.PAID) return;
+    if (!order) {
+      return {
+        success: false,
+        message: 'Order not found',
+      };
+    }
+    if (order.paymentStatus === PaymentStatus.PAID) {
+      return {
+        success: true,
+        message: 'Order already marked as PAID',
+      };
+    }
     order.paymentStatus = PaymentStatus.PAID;
     order.orderStatus = OrderStatus.PROCESSING;
+    for (const item of order.items) {
+      const product = await this.productRepo.findOne({
+        where: { id: item.product.id },
+      });
+
+      if (!product) continue;
+
+      if (product.stock < item.quantity) {
+        return {
+          success: false,
+          message: `Not enough stock for ${product.name}`,
+        };
+      }
+
+      product.stock -= item.quantity;
+
+      await this.productRepo.save(product);
+    }
     await this.orderRepo.save(order);
     return {
       success: true,
       message: 'Order marked as PAID',
-      orderId,
     };
   }
 
   // FAILED PAYMENT
   async handleFailed(paymentIntent: any) {
     const orderId = paymentIntent.metadata?.orderId;
-    if (!orderId) return;
+    if (!orderId) {
+      return {
+        success: false,
+        message: 'Order ID not found in payment metadata',
+      };
+    }
     const order = await this.orderRepo.findOne({
       where: { id: orderId },
     });

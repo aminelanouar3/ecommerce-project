@@ -6,6 +6,7 @@ import { Order, OrderStatus, PaymentStatus } from './order.entity';
 import { OrderItem } from './order-item.entity';
 import { CartItem } from '../cart/cart.entity';
 import { sendShippedEmail } from '../mail/mail.service';
+import { Product } from 'src/products/product.entity';
 
 @Injectable()
 export class OrdersService {
@@ -16,6 +17,8 @@ export class OrdersService {
     private itemRepo: Repository<OrderItem>,
     @InjectRepository(CartItem)
     private cartRepo: Repository<CartItem>,
+    @InjectRepository(Product)
+    private readonly productRepo: Repository<Product>,
   ) {}
 
   // 🟢 CREATE ORDER (checkout)
@@ -80,5 +83,46 @@ export class OrdersService {
   TRUNCATE TABLE orders CASCADE;
 `);
     return { message: 'All orders deleted' };
+  }
+
+  async cancelOrder(orderId: string, userId: string) {
+    const order = await this.orderRepo.findOne({
+      where: {
+        id: orderId,
+        user: { id: userId },
+      },
+      relations: ['items', 'items.product'],
+    });
+    if (!order) {
+      return {
+        success: false,
+        message: 'Order not found',
+      };
+    }
+    if (order.paymentStatus === PaymentStatus.PAID) {
+      return {
+        success: false,
+        message: 'Cannot cancel a paid order',
+      };
+    }
+
+    if (order.orderStatus === OrderStatus.CANCELLED) {
+      return {
+        success: false,
+        message: 'Order already cancelled',
+      };
+    }
+    // restore stock
+    for (const item of order.items) {
+      item.product.stock += item.quantity;
+      await this.productRepo.save(item.product);
+    }
+    order.orderStatus = OrderStatus.CANCELLED;
+    order.paymentStatus = PaymentStatus.FAILED;
+    await this.orderRepo.save(order);
+    return {
+      success: true,
+      message: 'Order cancelled and stock restored',
+    };
   }
 }

@@ -51,9 +51,14 @@ export class OrdersController {
   ) {
     return this.ordersService.updateOrderStatus(id, status);
   }
-
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Delete('admin/clear')
   clearOrders() {
     return this.ordersService.deleteAllOrders();
+  }
+  @UseGuards(JwtAuthGuard)
+  @Patch('cancel/:id')
+  cancelOrder(@Param('id') id: string, @Req() req) {
+    return this.ordersService.cancelOrder(id, req.user.id);
   }
 }
