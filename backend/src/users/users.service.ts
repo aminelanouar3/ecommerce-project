@@ -13,8 +13,6 @@ export class UsersService {
     private readonly repo: Repository<User>,
   ) {}
 
-  // 🔹 Find user by email
-
   // 🔹 Create new user
   async create(email: string, password: string): Promise<User> {
     const user = this.repo.create({ email, password });
@@ -23,40 +21,40 @@ export class UsersService {
 
   // 🔹 Find user by ID
   async findById(id: string): Promise<Omit<User, 'password'> | null> {
-  const user = await this.repo.findOne({ where: { id } });
-  if (!user) return null;
+    const user = await this.repo.findOne({ where: { id } });
+    if (!user) return null;
 
-  // destructure password out
-  const { password, ...result } = user;
-  return result;
+    // destructure password out
+    const { password, ...result } = user;
+    return result;
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
-  const user = await this.repo.findOne({ where: { id: userId } });
-  if (!user) throw new NotFoundException('User not found');
+    const user = await this.repo.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
 
-  // check if current password matches
-  const match = await bcrypt.compare(dto.currentPassword, user.password);
-  if (!match) throw new BadRequestException('Current password is incorrect');
+    // check if current password matches
+    const match = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!match) throw new BadRequestException('Current password is incorrect');
 
-  // hash new password
-  user.password = await bcrypt.hash(dto.newPassword, 10);
+    // hash new password
+    user.password = await bcrypt.hash(dto.newPassword, 10);
 
-  // save
-  await this.repo.save(user);
+    // save
+    await this.repo.save(user);
 
-  return { message: 'Password updated successfully' };
-}
+    return { message: 'Password updated successfully' };
+  }
 
-async findByEmail(email: string) {
-  return this.repo.findOne({ where: { email } });
-}
+  async findByEmail(email: string) {
+    return this.repo.findOne({ where: { email } });
+  }
 
-async findByResetToken(token: string) {
-  return this.repo.findOne({ where: { resetToken: token } });
-}
+  async findByResetToken(token: string) {
+    return this.repo.findOne({ where: { resetToken: token } });
+  }
 
-async save(user: User) {
-  return this.repo.save(user);
-}
+  async save(user: User) {
+    return this.repo.save(user);
+  }
 }
