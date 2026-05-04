@@ -1,0 +1,24 @@
+<nav class="navbar">
+
+  <div class="logo">E-Commerce</div>
+
+  <div class="links">
+
+    <a routerLink="/products">Products</a>
+    <ng-container  *ngIf="isLoggedIn">
+      <a routerLink="/cart">Cart</a>
+    </ng-container>
+
+
+    <ng-container *ngIf="!isLoggedIn">
+      <a routerLink="/login">Login</a>
+      <a routerLink="/register">Register</a>
+    </ng-container>
+
+    <ng-container *ngIf="isLoggedIn">
+      <a (click)="logout()">Logout</a>
+    </ng-container>
+
+  </div>
+
+</nav>

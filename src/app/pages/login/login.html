@@ -1,0 +1,25 @@
+<div class="auth-container">
+  <div class="auth-card">
+    <h2>Login</h2>
+    <form (ngSubmit)="onSubmit()">
+      <input
+        type="email"
+        placeholder="Email"
+        [(ngModel)]="user.email"
+        name="email"
+        required
+      />
+      <input
+        type="password"
+        placeholder="Password"
+        [(ngModel)]="user.password"
+        name="password"
+        required
+      />
+      <button type="submit">Login</button>
+    </form>
+    <p class="error" *ngIf="message">
+      {{ message }}
+    </p>
+  </div>
+</div>
